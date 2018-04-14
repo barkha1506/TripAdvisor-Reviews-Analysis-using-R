@@ -3,7 +3,7 @@ library("tm")
 library("SnowballC")
 library("wordcloud")
 library("RColorBrewer")
-setwd("C:/Studies/Fall/Live case")
+
 
 url <- "https://www.tripadvisor.com/Attraction_Review-g42881-d109972-Reviews-Mall_of_America-Bloomington_Minnesota.html"
 
@@ -36,7 +36,6 @@ inspect(docs)
 
 # Eliminate extra white spaces
 docs <- tm_map(docs, stripWhitespace)
-
 toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
 docs <- tm_map(docs, toSpace, "/")
 docs <- tm_map(docs, toSpace, "@")
@@ -55,9 +54,8 @@ docs <- tm_map(docs, removeWords, stopwords("english"))
 # specify your stopwords as a character vector
 docs <- tm_map(docs, removeWords, c("the","this","ride","rides","mall","america","of","moa")) 
 
-
-# Text stemming
-# docs <- tm_map(docs, stemDocument)
+# Text stemming to consider words like (running, run) the same
+docs <- tm_map(docs, stemDocument)
 
 #Wordcloud
 dtm <- TermDocumentMatrix(docs)
@@ -66,12 +64,13 @@ v <- sort(rowSums(m),decreasing=TRUE)
 d <- data.frame(word = names(v),freq=v)
 head(d, 10)
 
+#We can use wordcloud to find the most emerging words in the review                               
 set.seed(1234)
 wordcloud(words = d$word, freq = d$freq, min.freq = 1,
           max.words=600, random.order=FALSE, rot.per=0.35, 
           colors=brewer.pal(8, "Dark2"))
 
-
+#If we have a certain hypothesis in mind a kind of word, like long can be associated to long queue we can check that using below functions like findAssocs                            
 findFreqTerms(dtm, lowfreq = 80)
 findAssocs(dtm, terms = "long", corlimit = 0.3)
 #We see that the word 'long' comes more than 80 times in all the reviews and 46% of the time it is 
@@ -87,22 +86,18 @@ findAssocs(dtm, terms = "one", corlimit = 0.1)
 findAssocs(dtm, terms = "workers", corlimit = 0.1)
 #Workers are 39% correlated with rude
 
-findAssocs(dtm, terms = "rude", corlimit = 0.1)
-
-findAssocs(dtm, terms = "operator", corlimit = 0.3)
-
 #LDA
-
+#Next, let's try to find if the reviews are inherently part of categories
 # Convert all documents to a term frequency matrix. 
 tfm <- DocumentTermMatrix(docs)
 
+#Using the LDA algorithm to divide reviews into 3 categories and using Gibbs sampling to do it
 results <- LDA(tfm, k = 3, method = "Gibbs",control = list(seed = 0))
-
 
 # Obtain the top w words (i.e., the w most probable words) for each topic, with the
 #optional requirement that their probability is greater than thresh
 
-#After trying multiple combinations of of word limit and threshold, the below value
+#After trying multiple combinations of word limit and threshold, the below value
 #gave decent understanding of some of the topics
 w=5 
 thresh = 0.010
@@ -112,12 +107,11 @@ Terms <- terms(results, w,thresh)
 #actually is about
 Terms
 
-
 # Obtain the most likely t topic assignments for each document. 
 t=1 
 Topic <- topics(results,t)
 
-# Get the posterior probability for each document over each topic 
+#Get the posterior probability for each document over each topic 
 posterior <- posterior(results)[[2]]
 
 # look at the posterior topic distribution for the dth document and plot it visually 
@@ -129,11 +123,5 @@ barplot(posterior[d,])
 Terms[which.max(posterior[d,])]
 
 # Compare the keyword of document d to the terms. keywords$query[d]
-docs[[d]]$meta$id
-
-
 docs[[1592]]$content
-d=1592
-posterior[d,]
-Terms[which.max(posterior[d,])]
-docs[[d]]$meta$id 
+
